@@ -3,6 +3,7 @@ from os.path import ismount, exists, join
 from runpy import run_path
 from .types import StandardParser
 
+
 def main():
     # Parse arguments
     root_type = "root"
@@ -22,7 +23,7 @@ def main():
     parser = StandardParser()
     if "types" in config:
         for type, value in config["types"].items():
-            assert(type not in parser.types)
+            assert (type not in parser.types)
             parser.types[type] = value
     if "native_types" in config:
         for type, value in config["native_types"].items():
@@ -35,6 +36,7 @@ def main():
     # PARSE!
     print(parser.safe_call(parser.match_handler("message"), stdin.buffer, root_type) + "\n")
     return 1 if len(parser.errors_produced) else 0
+
 
 if __name__ == "__main__":
     exit(main())
