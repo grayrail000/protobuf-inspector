@@ -2,8 +2,9 @@ from traceback import format_exc
 from io import BytesIO
 from .core import read_varint, read_value
 
-# Implements the Parser class, which has the basic infrastructure for
-# storing types, calling them to parse, basic formatting and error handling.
+
+# 实现 Parser 类，它具有基本的基础结构
+# 存储类型、调用它们进行解析、基本格式化和错误处理。
 
 class Parser(object):
 
@@ -56,25 +57,33 @@ class Parser(object):
             if not len(chunk): break
             padded_chunk = chunk + [None] * max(0, self.bytes_per_line - len(chunk))
             hexdump = " ".join("  " if x is None else decorate(i, "%02X" % x) for i, x in enumerate(padded_chunk))
-            printable_chunk = "".join(decorate(i, chr(x) if 0x20 <= x < 0x7F else fg3(".")) for i, x in enumerate(chunk))
+            printable_chunk = "".join(
+                decorate(i, chr(x) if 0x20 <= x < 0x7F else fg3(".")) for i, x in enumerate(chunk))
+            printable_chunk = ''  # 不确定是什么
+
             lines.append("%04x   %s  %s" % (offset, hexdump, printable_chunk))
             offset += len(chunk)
+
         return ("\n".join(lines), offset)
 
     # Error handling
 
     def safe_call(self, handler, x, *wargs):
-        chunk = False
+        # 读取输入数据并将其转换为 BytesIO 对象
         try:
             chunk = x.read()
             x = BytesIO(chunk)
         except Exception:
+            # 处理读取错误，但忽略异常
             pass
 
         try:
+            # 调用指定的处理函数 handler，传递 x 和其他可选参数 wargs
             return handler(x, *wargs)
         except Exception as e:
+            # 处理异常并记录错误信息
             self.errors_produced.append(e)
+            # 获取输入数据的十六进制转储，并将其格式化添加到错误信息中
             hex_dump = "" if chunk is False else "\n\n%s\n" % self.hex_dump(BytesIO(chunk), x.tell())[0]
             return "%s: %s%s" % (fg1("ERROR"), self.indent(format_exc()).strip(), self.indent(hex_dump))
 
@@ -89,24 +98,33 @@ class Parser(object):
     def match_handler(self, type, wire_type=None):
         native_type = self.match_native_type(type)
         if not (wire_type is None) and wire_type != native_type[1]:
-            raise Exception("Found wire type %d (%s), wanted type %d (%s)" % (wire_type, self.default_handlers[wire_type], native_type[1], type))
+            raise Exception("Found wire type %d (%s), wanted type %d (%s)" % (
+                wire_type, self.default_handlers[wire_type], native_type[1], type))
         return native_type[0]
 
 
 # Terminal formatting functions
 
 def fg(x, n):
-    assert(0 <= n < 10 and isinstance(n, int))
-    if not x.endswith("\x1b[m"): x += "\x1b[m"
-    return "\x1b[3%dm" % n + x
+    assert 0 <= n < 10 and isinstance(n, int)
+    # if not x.endswith("\x1b[m"):
+    #     x += "\x1b[m"
+    return x
+
+
 def bold(x):
-    if not x.endswith("\x1b[m"): x += "\x1b[m"
-    return "\x1b[1m" + x
+    # if not x.endswith("\x1b[m"): x += "\x1b[m"
+    return x
+
+
 def dim(x):
-    if not x.endswith("\x1b[m"): x += "\x1b[m"
-    return "\x1b[2m" + x
+    # if not x.endswith("\x1b[m"): x += "\x1b[m"
+    return x
+
 
 def genfg(n):
     globals()["fg%d" % n] = lambda x: fg(x, n)
     globals()["FG%d" % n] = lambda x: bold(fg(x, n))
+
+
 for i in range(10): genfg(i)

@@ -50,10 +50,12 @@ class StandardParser(Parser):
         return (type, field)
 
     def parse_message(self, file, gtype, endgroup=None):
+        """解析消息"""
         if gtype not in self.types and gtype != self.default_handler:
-            raise Exception("Unknown message type %s" % gtype)
+            raise Exception("未知消息类型 %s" % gtype)
 
         lines = []
+        lines_temp = []
         keys_types = {}
         while True:
             key, wire_type = read_identifier(file)
@@ -63,7 +65,7 @@ class StandardParser(Parser):
             assert (not (x is None))
 
             if wire_type == 4:
-                if not endgroup: raise Exception("Unexpected end group")
+                if not endgroup: raise Exception("意外的端基")
                 endgroup[0] = key
                 break
 
@@ -80,15 +82,26 @@ class StandardParser(Parser):
                 self.groups_observed = True
             else:
                 if type is None: type = self.default_handlers[wire_type]
-                x = self.safe_call(lambda x: self.match_handler(type, wire_type)(x, type), x)
+                handler = self.match_handler(type, wire_type)
 
+                x = self.safe_call(lambda x: handler(x, type), x)
             if field is None: field = "<%s>" % type
-            lines.append("%s %s = %s" % (fg4(str(key)), field, x))
+            # 修改名称
+            if field == "<varint>":
+                field = 'i'
+            elif field == "<chunk>":
+                field = 'b'
 
-        if key is None and endgroup: raise Exception("Group was not ended")
+            lines_temp.append((key, field, x))
+            # print('12131',key, field, x)
+            lines.append("%s %s = %s" % (str(key), field, x))
+
+            if key is None and endgroup:
+                raise Exception("Group was not ended")
         if len(lines) <= self.message_compact_max_lines and self.to_display_compactly(gtype, lines):
             return "%s(%s)" % (gtype, ", ".join(lines))
         if not len(lines): lines = ["empty"]
+        print(lines_temp)
         return "%s:\n%s" % (gtype, self.indent("\n".join(lines)))
 
     # Functions for generic types (default for wire types)
@@ -169,24 +182,24 @@ class StandardParser(Parser):
         assert (0 <= x < (1 << 64))
         if x >= (1 << 63): x -= (1 << 64)
         assert (-(1 << 31) <= x < (1 << 31))
-        return fg3(str(x))
+        return str(x)
 
     def parse_int64(self, x, type):
         assert (0 <= x < (1 << 64))
         if x >= (1 << 63): x -= (1 << 64)
-        return fg3(str(x))
+        return str(x)
 
     def parse_uint32(self, x, type):
         assert (0 <= x < (1 << 32))
-        return fg3(str(x))
+        return str(x)
 
     def parse_uint64(self, x, type):
         assert (0 <= x < (1 << 64))
-        return fg3(str(x))
+        return str(x)
 
     def parse_bool(self, x, type):
         assert (0 <= x < (1 << 1))
-        return fg3(str(bool(x)))
+        return str(bool(x))
 
     def parse_string(self, file, type):
         string = file.read().decode("utf-8")
@@ -212,9 +225,11 @@ class StandardParser(Parser):
         return "packed:\n%s" % (self.indent("\n".join(lines)))
 
     def parse_fixed32(self, x, type):
+
         return fg3("%d" % unpack("<i", x)[0])
 
     def parse_sfixed32(self, x, type):
+
         return fg3("%d" % unpack("<I", x)[0])
 
     def parse_float(self, x, type):
