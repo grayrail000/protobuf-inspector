@@ -32,8 +32,24 @@ class Parser(object):
     # Formatting
 
     def indent(self, text, indent=None):
-        if indent is None: indent = self.default_indent
+        """
+        这个函数是为了给文本增加缩进。
+
+        参数：
+        text : str
+            需要缩进的文本。
+        indent : str, 可选
+            缩进的字符串。如果没有提供，则使用默认的缩进。
+
+        返回值：
+        str
+            增加了缩进的文本。
+        """
+        if indent is None:
+            indent = self.default_indent
+
         lines = ((indent + line if len(line) else line) for line in text.split("\n"))
+
         return "\n".join(lines)
 
     def to_display_compactly(self, type, lines):

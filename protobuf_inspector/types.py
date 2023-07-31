@@ -52,20 +52,23 @@ class StandardParser(Parser):
     def parse_message(self, file, gtype, endgroup=None):
         """解析消息"""
         if gtype not in self.types and gtype != self.default_handler:
-            raise Exception("未知消息类型 %s" % gtype)
+            raise Exception(f"未知消息类型 {gtype}")
 
         lines = []
         lines_temp = []
         keys_types = {}
+
         while True:
             key, wire_type = read_identifier(file)
-            if key is None: break
+            if key is None:
+                break
 
-            x = read_value(file, wire_type)
-            assert (not (x is None))
+            value = read_value(file, wire_type)
+            assert (value is not None)
 
             if wire_type == 4:
-                if not endgroup: raise Exception("意外的端基")
+                if not endgroup:
+                    raise Exception("意外的端基")
                 endgroup[0] = key
                 break
 
@@ -75,34 +78,37 @@ class StandardParser(Parser):
 
             type, field = self.get_message_field_entry(gtype, key)
             if wire_type == 3:
-                if type is None: type = "message"
+                if type is None:
+                    type = "message"
                 end = [None]
-                x = self.parse_message(file, type, end)
-                x = "group (end %s) " % fg4(str(end[0])) + x
+                value = self.parse_message(file, type, end)
+                value = f"group (end {fg4(str(end[0]))}) {value}"
                 self.groups_observed = True
             else:
-                if type is None: type = self.default_handlers[wire_type]
+                if type is None:
+                    type = self.default_handlers[wire_type]
                 handler = self.match_handler(type, wire_type)
 
-                x = self.safe_call(lambda x: handler(x, type), x)
-            if field is None: field = "<%s>" % type
-            # 修改名称
-            if field == "<varint>":
-                field = 'i'
-            elif field == "<chunk>":
-                field = 'b'
+                value = self.safe_call(lambda value: handler(value, type), value)
+            if field is None:
+                field = f"<{type}>"
 
-            lines_temp.append((key, field, x))
-            # print('12131',key, field, x)
-            lines.append("%s %s = %s" % (str(key), field, x))
+            # 修改名称
+            field = 'i' if field == "<varint>" else 'b' if field == "<chunk>" else field
+
+            lines_temp.append((key, field, value))
+            lines.append(f"{str(key)} {field} = {value}")
 
             if key is None and endgroup:
-                raise Exception("Group was not ended")
+                raise Exception("组未结束")
+
         if len(lines) <= self.message_compact_max_lines and self.to_display_compactly(gtype, lines):
-            return "%s(%s)" % (gtype, ", ".join(lines))
-        if not len(lines): lines = ["empty"]
-        print(lines_temp)
-        return "%s:\n%s" % (gtype, self.indent("\n".join(lines)))
+            return f"{gtype}({', '.join(lines)})"
+        if not len(lines):
+            lines = ["empty"]
+
+        gtype = 'msg'
+        return "{}:\n{}".format(gtype, self.indent('\n'.join(lines)))
 
     # Functions for generic types (default for wire types)
 
